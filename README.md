@@ -1,4 +1,4 @@
-# Project Gamify - Project Management System
+# Sprintaza - Project Management System
 
 Sistem manajemen proyek dengan fitur gamifikasi berupa **achievement** dan **XP points** untuk meningkatkan produktivitas tim.
 
