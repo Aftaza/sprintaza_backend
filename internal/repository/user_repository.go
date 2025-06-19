@@ -9,7 +9,9 @@ import (
 // UserRepository mendefinisikan operasi database untuk User.
 type UserRepository interface {
 	FindByEmail(email string) (*model.User, error)
+	FindByID(id uint) (*model.User, error)
 	Create(user *model.User) (*model.User, error)
+	Update(user *model.User) error
 }
 
 // userRepository adalah implementasi dari UserRepository menggunakan GORM.
@@ -34,6 +36,18 @@ func (r *userRepository) FindByEmail(email string) (*model.User, error) {
 		return nil, err
 	}
 	return &user, nil
+}
+
+// FindByID mencari pengguna berdasarkan ID primary key.
+// Ini akan preload semua data terkait yang dibutuhkan untuk profil.
+func (r *userRepository) FindByID(id uint) (*model.User, error) {
+    var user model.User
+    // Preload UserXP dan UserAchievements beserta detail Achievement-nya.
+    err := r.db.Preload("UserXP").Preload("UserAchievements.Achievement").Where("id = ?", id).First(&user).Error
+    if err != nil {
+        return nil, err // Kembalikan error apa adanya, termasuk gorm.ErrRecordNotFound
+    }
+    return &user, nil
 }
 
 // Create membuat entri pengguna baru beserta entri UserXP terkait dalam satu transaksi.
@@ -66,4 +80,10 @@ func (r *userRepository) Create(user *model.User) (*model.User, error) {
 	}
 
 	return user, nil
+}
+
+// Update menyimpan perubahan pada model User ke database.
+func (r *userRepository) Update(user *model.User) error {
+    // .Save akan memperbarui semua kolom, termasuk yang nilainya nol/kosong.
+    return r.db.Save(user).Error
 }

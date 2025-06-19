@@ -6,7 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/Aftaza/sprintaza_backend/internal/handler/http" // Handler spesifik
-	// "github.com/Aftaza/sprintaza_backend/internal/middleware"
+	"github.com/Aftaza/sprintaza_backend/internal/middleware"
 	"github.com/Aftaza/sprintaza_backend/internal/repository"
 	"github.com/Aftaza/sprintaza_backend/internal/service"
 	"golang.org/x/oauth2"
@@ -45,10 +45,12 @@ func SetupRoutes(db *gorm.DB) *gin.Engine {
 
 	// 3. Service
 	authService := service.NewAuthService(userRepo, googleOAuthConfig)
+	userService := service.NewUserService(userRepo)
 	// projectService := service.NewProjectService(projectRepo) // (Untuk nanti)
 
 	// 4. Handler
 	authHandler := http.NewAuthHandler(authService, googleOAuthConfig)
+	userHandler := http.NewUserHandler(userService)
 	// projectHandler := http.NewProjectHandler(projectService) // (Untuk nanti)
 
 	// --- Pendaftaran Route ---
@@ -63,18 +65,18 @@ func SetupRoutes(db *gorm.DB) *gin.Engine {
 		}
 
 		// Grup untuk route yang memerlukan autentikasi (Dilindungi Middleware)
-		// protectedRoutes := api.Group("").Use(middleware.AuthMiddleware())
-		// {
-		// 	// Contoh route yang dilindungi
-		// 	// projects := protectedRoutes.Group("/projects")
-		// 	// {
-		// 	// 	projects.POST("/", projectHandler.CreateProject)
-		// 	// 	projects.GET("/", projectHandler.GetProjects)
-		// 	// }
-
-		// 	// Route untuk mendapatkan profil user yang sedang login
-		// 	// protectedRoutes.GET("/me", userHandler.GetMyProfile)
-		// }
+		// Variabel protectedRoutes akan bertipe *gin.RouterGroup
+		protectedRoutes := api.Group("")
+		protectedRoutes.Use(middleware.AuthMiddleware())
+		{
+			// Endpoint untuk User Profile
+			meRoutes := protectedRoutes.Group("/me") 
+			{
+				meRoutes.GET("", userHandler.GetProfile)
+				meRoutes.PUT("/profile", userHandler.UpdateProfile)
+				meRoutes.PUT("/password", userHandler.UpdatePassword)
+			}
+		}
 	}
 
 	return r

@@ -17,7 +17,7 @@ type User struct {
 // UserXP menyimpan data gamifikasi poin untuk setiap pengguna.
 type UserXP struct {
 	ID        uint `gorm:"primaryKey" json:"id"`
-	UserID    uint `json:"user_id"`
+	UserID    uint `json:"user_id"` // Harus diahpus nanti
 	XP        int  `gorm:"default:0" json:"xp"`
 	InitialXP int  `gorm:"default:0" json:"initial_xp"`
 }
