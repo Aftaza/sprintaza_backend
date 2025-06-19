@@ -1,7 +1,7 @@
 package service
 
 import (
-	"errors"
+	// "errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
