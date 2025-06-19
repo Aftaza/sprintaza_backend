@@ -23,13 +23,15 @@ type AuthService interface {
 
 type authService struct {
 	userRepo        repository.UserRepository
+	gamificationService GamificationService
 	googleOAuthConfig *oauth2.Config
 }
 
 // NewAuthService membuat instance baru dari AuthService.
-func NewAuthService(userRepo repository.UserRepository, googleOAuthConfig *oauth2.Config) AuthService {
+func NewAuthService(userRepo repository.UserRepository, gamificationService GamificationService, googleOAuthConfig *oauth2.Config) AuthService {
 	return &authService{
 		userRepo:        userRepo,
+		gamificationService: gamificationService,
 		googleOAuthConfig: googleOAuthConfig,
 	}
 }
@@ -77,7 +79,15 @@ func (s *authService) ProcessGoogleCallback(ctx context.Context, code string) (s
 			if createErr != nil { return "", fmt.Errorf("gokal membuat user baru: %w", createErr) }
 			
 			user = createdUser // Set user saat ini ke user yang baru dibuat
-			
+
+			// Kita perlu me-load relasinya lagi untuk user yang baru dibuat.
+			fullUser, err := s.userRepo.FindByID(user.ID)
+			if err != nil {
+				return "", fmt.Errorf("gagal mengambil data user lengkap: %w", err)
+			}
+			// Panggil GamificationService
+			go s.gamificationService.GrantWelcomeAchievement(fullUser)
+
 			log.Printf("Password sementara untuk %s: %s (HANYA UNTUK DEV)", user.Email, randomPassword)
 
 		} else {

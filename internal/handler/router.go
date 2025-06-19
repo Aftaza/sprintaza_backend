@@ -27,6 +27,7 @@ func SetupRoutes(db *gorm.DB) *gin.Engine {
 
 	// 1. Repository
 	userRepo := repository.NewUserRepository(db)
+	achieveRepo := repository.NewAchievementRepository(db)
 	// projectRepo := repository.NewProjectRepository(db) // (Untuk nanti)
 
 	// 2. Konfigurasi Google OAuth
@@ -44,7 +45,8 @@ func SetupRoutes(db *gorm.DB) *gin.Engine {
 	}
 
 	// 3. Service
-	authService := service.NewAuthService(userRepo, googleOAuthConfig)
+	gamificationSvc := service.NewGamificationService(userRepo, achieveRepo)
+	authService := service.NewAuthService(userRepo, gamificationSvc, googleOAuthConfig)
 	userService := service.NewUserService(userRepo)
 	// projectService := service.NewProjectService(projectRepo) // (Untuk nanti)
 

@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"time"
 
 	"github.com/Aftaza/sprintaza_backend/internal/model"
 	"gorm.io/gorm"
@@ -12,6 +13,7 @@ type UserRepository interface {
 	FindByID(id uint) (*model.User, error)
 	Create(user *model.User) (*model.User, error)
 	Update(user *model.User) error
+	GrantAchievement(userID, achievementID uint, xpGained int) error
 }
 
 // userRepository adalah implementasi dari UserRepository menggunakan GORM.
@@ -86,4 +88,29 @@ func (r *userRepository) Create(user *model.User) (*model.User, error) {
 func (r *userRepository) Update(user *model.User) error {
     // .Save akan memperbarui semua kolom, termasuk yang nilainya nol/kosong.
     return r.db.Save(user).Error
+}
+
+func (r *userRepository) GrantAchievement(userID, achievementID uint, xpGained int) error {
+    return r.db.Transaction(func(tx *gorm.DB) error {
+        // 1. Tambahkan XP ke tabel user_xps
+        var user model.User
+        if err := tx.Preload("UserXP").First(&user, userID).Error; err != nil {
+            return err
+        }
+        if err := tx.Model(&user.UserXP).Update("xp", gorm.Expr("xp + ?", xpGained)).Error; err != nil {
+            return err
+        }
+
+        // 2. Catat achievement yang didapat di tabel user_achievements
+        userAchievement := model.UserAchievement{
+            UserID:        userID,
+            AchievementID: achievementID,
+            UnlockedAt:    time.Now(),
+        }
+        if err := tx.Create(&userAchievement).Error; err != nil {
+            return err
+        }
+
+        return nil
+    })
 }
