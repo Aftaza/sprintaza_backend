@@ -1,0 +1,22 @@
+openapi: 3.0.0
+info:
+  version: 1.0.0
+  title: Sprintaza API - Project Manager
+  description: Simple platform to manage project with team and efective
+  contact:
+    name: Zentaza
+    url: https://github.com/Aftaza
+    email: zen.bisnis17@gmail.com
+  license:
+    name: MIT
+    url: https://github.com/Aftaza/sprintaza_backend/blob/main/README.md
+servers:
+  - url: 'http://{host}:4000/api/v1'
+    description: go service api server endpoint application
+    variables:
+      host:
+        default: localhost
+        enum:
+          - localhost
+paths:
+  
