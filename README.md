@@ -19,7 +19,7 @@ Sistem manajemen proyek dengan fitur gamifikasi berupa **achievement** dan **XP 
 2.  Pastikan Anda memiliki Go (versi 1.21+) terinstal.
 3.  Buat file `.env` dari contoh `.env.example`.
 4.  Jalankan `go mod tidy` untuk menginstal dependensi.
-5.  Jalankan aplikasi dengan `go run cmd/server/main.go`.
+5.  Jalankan aplikasi dengan `go run main.go`.
 6.  Server akan berjalan di `http://localhost:8080`.
 
 ## 📚 Dokumentasi API
