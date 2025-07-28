@@ -22,5 +22,12 @@ type EntityColumn struct {
 
 // TableName mengembalikan nama nama tabel di database
 func (EntityColumn) TableName() string {
-	return "COLUMN"
+	return "columns"
+}
+
+// DefaultColumnNames adalah slice dari nama-nama kolom default
+var DefaultColumnNames = []string{
+	"To Do",
+	"In Progress",
+	"Done",
 }

@@ -49,6 +49,7 @@ func Connection() *gorm.DB {
 	}
 
 	SeedAchievements(db)
+	SeedRoles(db)
 
 	return db
 }

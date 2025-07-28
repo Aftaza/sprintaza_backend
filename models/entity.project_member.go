@@ -23,5 +23,5 @@ type EntityProjectMember struct {
 
 // TableName mengembalikan nama nama tabel di database
 func (EntityProjectMember) TableName() string {
-	return "PROJECT_MEMBER"
+	return "project_member"
 }

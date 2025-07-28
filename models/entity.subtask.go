@@ -21,5 +21,5 @@ type EntitySubtask struct {
 
 // TableName mengembalikan nama nama tabel di database
 func (EntitySubtask) TableName() string {
-	return "SUBTASK"
+	return "subtask"
 }

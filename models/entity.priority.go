@@ -21,5 +21,12 @@ type EntityPriority struct {
 
 // TableName mengembalikan nama nama tabel di database
 func (EntityPriority) TableName() string {
-	return "PRIORITY"
+	return "priority"
+}
+
+// DefaultPriorityTitles adalah slice dari judul prioritas default
+var DefaultPriorityTitles = []string{
+	"High",
+	"Medium",
+	"Low",
 }

@@ -20,5 +20,5 @@ type EntityUserXP struct {
 
 // TableName mengembalikan nama tabel di database
 func (EntityUserXP) TableName() string {
-	return "USER_XP"
+	return "user_xp"
 }

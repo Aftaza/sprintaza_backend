@@ -21,7 +21,7 @@ type EntityAchievement struct {
 
 // TableName mengembalikan nama nama tabel di database
 func (EntityAchievement) TableName() string {
-	return "ACHIEVEMENTS"
+	return "achievements"
 }
 
 // DefaultAchievements adalah slice dari achievement default yang akan di-seed

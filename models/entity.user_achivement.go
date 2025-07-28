@@ -24,5 +24,5 @@ type EntityUserAchievement struct {
 
 // TableName mengembalikan nama tabel di database
 func (EntityUserAchievement) TableName() string {
-	return "USER_ACHIEVEMENTS"
+	return "user_achievement"
 }

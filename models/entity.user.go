@@ -24,7 +24,7 @@ type EntityUsers struct {
 }
 
 func (EntityUsers) TableName() string {
-	return "USERS"
+	return "users"
 }
 
 func (entity *EntityUsers) BeforeCreate(db *gorm.DB) (err error) {

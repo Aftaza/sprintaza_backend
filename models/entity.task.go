@@ -19,3 +19,8 @@ type EntityTask struct {
 	UpdatedAt 	time.Time      `gorm:"column:updated_at"`
 	DeletedAt 	gorm.DeletedAt `gorm:"index;column:deleted_at"` // Opsi: untuk soft delete
 }
+
+// TableName mengembalikan nama nama tabel di database
+func (EntityTask) TableName() string {
+	return "task"
+}

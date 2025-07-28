@@ -2,8 +2,7 @@ package main
 
 import (
 	"fmt"
-	"os"
-
+	
 	config "github.com/Aftaza/sprintaza_backend/configs"
 	util "github.com/Aftaza/sprintaza_backend/utils"
 	
@@ -24,9 +23,11 @@ func init() {
 	logrus.SetLevel(logrus.InfoLevel)
 	
 	// Load environment variables
-	if os.Getenv("GO_ENV") != "production" {
+	if util.GodotEnv("GO_ENV") != "production" && util.GodotEnv("GO_ENV") != "test" {
 		logrus.SetLevel(logrus.DebugLevel)
 		gin.SetMode(gin.DebugMode)
+	} else if util.GodotEnv("GO_ENV") == "test" {
+		gin.SetMode(gin.TestMode)
 	} else {
 		gin.SetMode(gin.ReleaseMode)
 	}
