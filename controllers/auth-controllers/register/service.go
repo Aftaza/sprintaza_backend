@@ -86,6 +86,18 @@ func (s *Service) RegisterUserWithGoogleOAuth(input *GoogleOAuthRegisterInput) (
 		return nil, errors.New("failed to create user account")
 	}
 
+	// Award welcome achievement (ID: 1) for new users
+	var welcomeAchievement *AchievementResponse
+	if achievementData, err := s.awardWelcomeAchievement(newUser.ID); err != nil {
+		// Log the error but don't fail the registration
+		logrus.WithFields(logrus.Fields{
+			"user_id": newUser.ID,
+			"error":   err.Error(),
+		}).Warn("Failed to award welcome achievement, but user registration succeeded")
+	} else {
+		welcomeAchievement = achievementData
+	}
+
 	// Generate JWT token for new user
 	token, err := s.generateJWTToken(newUser.ID, newUser.Email)
 	if err != nil {
@@ -106,8 +118,9 @@ func (s *Service) RegisterUserWithGoogleOAuth(input *GoogleOAuthRegisterInput) (
 			Email:     newUser.Email,
 			AvatarURL: newUser.AvatarURL,
 		},
-		Token:     token,
-		IsNewUser: true,
+		Token:       token,
+		IsNewUser:   true,
+		Achievement: welcomeAchievement,
 	}, nil
 }
 
@@ -146,13 +159,53 @@ func (s *Service) generateRandomPassword() (string, error) {
 	}
 	return hex.EncodeToString(bytes), nil
 }
+// awardWelcomeAchievement awards the welcome achievement (ID: 1) to a new user and returns achievement details
+func (s *Service) awardWelcomeAchievement(userID uint) (*AchievementResponse, error) {
+	const welcomeAchievementID = 1
+	
+	// Award the achievement
+	if err := s.repository.AwardAchievement(userID, welcomeAchievementID); err != nil {
+		return nil, err
+	}
+	
+	// Get achievement details to award XP
+	achievement, err := s.repository.GetAchievementByID(welcomeAchievementID)
+	if err != nil {
+		return nil, err
+	}
+	
+	if achievement == nil {
+		return nil, errors.New("welcome achievement not found")
+	}
+	
+	// Update user's XP with achievement reward
+	if err := s.repository.UpdateUserXP(userID, achievement.XPReward); err != nil {
+		return nil, err
+	}
+	
+	logrus.WithFields(logrus.Fields{
+		"user_id":        userID,
+		"achievement_id": welcomeAchievementID,
+		"xp_reward":      achievement.XPReward,
+	}).Info("Welcome achievement awarded successfully")
+	
+	// Return achievement details for response
+	return &AchievementResponse{
+		ID:          achievement.ID,
+		Name:        achievement.Name,
+		Description: achievement.Description,
+		XPReward:    achievement.XPReward,
+		IconURL:     achievement.IconURL,
+	}, nil
+}
 
 // RegisterResponse represents the response for user registration
 type RegisterResponse struct {
-	Message   string       `json:"message"`
-	User      UserResponse `json:"user"`
-	Token     string       `json:"token"`
-	IsNewUser bool         `json:"is_new_user"`
+	Message     string                  `json:"message"`
+	User        UserResponse           `json:"user"`
+	Token       string                 `json:"token"`
+	IsNewUser   bool                   `json:"is_new_user"`
+	Achievement *AchievementResponse   `json:"achievement,omitempty"` // Only for new users
 }
 
 // UserResponse represents user data in API responses
@@ -161,4 +214,13 @@ type UserResponse struct {
 	Name      string `json:"name"`
 	Email     string `json:"email"`
 	AvatarURL string `json:"avatar_url"`
+}
+
+// AchievementResponse represents achievement data in API responses
+type AchievementResponse struct {
+	ID          uint   `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	XPReward    int    `json:"xp_reward"`
+	IconURL     string `json:"icon_url"`
 }

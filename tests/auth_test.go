@@ -64,6 +64,14 @@ func TestGoogleOAuthRegister(t *testing.T) {
 		assert.Contains(t, data, "token")
 		assert.True(t, data["is_new_user"].(bool))
 		
+		// Check for welcome achievement in new user registration
+		assert.Contains(t, data, "achievement")
+		achievement := data["achievement"].(map[string]interface{})
+		assert.Equal(t, float64(1), achievement["id"]) // JSON unmarshals numbers as float64
+		assert.Equal(t, "Selamat Datang!", achievement["name"])
+		assert.Contains(t, achievement, "description")
+		assert.Equal(t, float64(10), achievement["xp_reward"]) // Welcome achievement gives 10 XP
+		
 		user := data["user"].(map[string]interface{})
 		assert.Equal(t, "test@example.com", user["email"])
 		assert.Equal(t, "Test User", user["name"])
@@ -154,5 +162,9 @@ func TestGoogleOAuthRegister(t *testing.T) {
 		data := response["data"].(map[string]interface{})
 		assert.False(t, data["is_new_user"].(bool))
 		assert.Contains(t, data["message"], "already exists")
+		
+		// Existing users should not receive achievement again
+		_, hasAchievement := data["achievement"]
+		assert.False(t, hasAchievement, "Existing users should not receive achievement")
 	})
 }

@@ -1,6 +1,8 @@
 package registerAuth
 
 import (
+	"time"
+
 	model "github.com/Aftaza/sprintaza_backend/models"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
@@ -81,6 +83,61 @@ func (r *Repository) CreateUser(user *model.EntityUsers) error {
 	
 	return nil
 }
+// GetAchievementByID retrieves an achievement by its ID
+func (r *Repository) GetAchievementByID(achievementID uint) (*model.EntityAchievement, error) {
+	var achievement model.EntityAchievement
+	err := r.db.Where("achievement_id = ?", achievementID).First(&achievement).Error
+	
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		logrus.WithFields(logrus.Fields{
+			"achievement_id": achievementID,
+			"error":          err.Error(),
+		}).Error("Failed to get achievement by ID")
+		return nil, err
+	}
+	
+	return &achievement, nil
+}
+
+// UpdateUserXP updates the user's total XP
+func (r *Repository) UpdateUserXP(userID uint, additionalXP int) error {
+	// Get the user with UserXP relationship
+	var user model.EntityUsers
+	err := r.db.Preload("UserXP").Where("user_id = ?", userID).First(&user).Error
+	
+	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"user_id": userID,
+			"error":   err.Error(),
+		}).Error("Failed to get user for XP update")
+		return err
+	}
+	
+	// Update the XP
+	newTotalXP := user.UserXP.TotalXP + additionalXP
+	err = r.db.Model(&user.UserXP).Update("total_xp", newTotalXP).Error
+	
+	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"user_id":       userID,
+			"additional_xp": additionalXP,
+			"new_total_xp":  newTotalXP,
+			"error":         err.Error(),
+		}).Error("Failed to update user XP")
+		return err
+	}
+	
+	logrus.WithFields(logrus.Fields{
+		"user_id":       userID,
+		"additional_xp": additionalXP,
+		"new_total_xp":  newTotalXP,
+	}).Info("User XP updated successfully")
+	
+	return nil
+}
 
 // GetUserByID retrieves a user by their ID with UserXP relationship
 func (r *Repository) GetUserByID(userID uint) (*model.EntityUsers, error) {
@@ -99,4 +156,52 @@ func (r *Repository) GetUserByID(userID uint) (*model.EntityUsers, error) {
 	}
 	
 	return &user, nil
+}
+
+// AwardAchievement awards an achievement to a user
+func (r *Repository) AwardAchievement(userID uint, achievementID uint) error {
+	// Check if user already has this achievement
+	var existingAchievement model.EntityUserAchievement
+	err := r.db.Where("user_id = ? AND achievement_id = ?", userID, achievementID).First(&existingAchievement).Error
+	
+	if err == nil {
+		// User already has this achievement
+		logrus.WithFields(logrus.Fields{
+			"user_id":        userID,
+			"achievement_id": achievementID,
+		}).Info("User already has this achievement")
+		return nil
+	}
+	
+	if err != gorm.ErrRecordNotFound {
+		logrus.WithFields(logrus.Fields{
+			"user_id":        userID,
+			"achievement_id": achievementID,
+			"error":          err.Error(),
+		}).Error("Failed to check existing achievement")
+		return err
+	}
+	
+	// Create new user achievement
+	userAchievement := &model.EntityUserAchievement{
+		UserID:        userID,
+		AchievementID: achievementID,
+		UnlockedAt:    time.Now(),
+	}
+	
+	if err := r.db.Create(userAchievement).Error; err != nil {
+		logrus.WithFields(logrus.Fields{
+			"user_id":        userID,
+			"achievement_id": achievementID,
+			"error":          err.Error(),
+		}).Error("Failed to award achievement")
+		return err
+	}
+	
+	logrus.WithFields(logrus.Fields{
+		"user_id":        userID,
+		"achievement_id": achievementID,
+	}).Info("Achievement awarded successfully")
+	
+	return nil
 }
