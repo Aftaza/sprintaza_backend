@@ -5,6 +5,7 @@ import (
 	
 	config "github.com/Aftaza/sprintaza_backend/configs"
 	util "github.com/Aftaza/sprintaza_backend/utils"
+	handlerRegister "github.com/Aftaza/sprintaza_backend/handlers/auth-handlers/register"
 	
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/gzip"
@@ -114,21 +115,23 @@ func setupRoutes(router *gin.Engine) {
 		})
 	})
 
+	// Initialize handlers
+	registerHandler := handlerRegister.NewHandler(db)
+
 	// API version 1 group
 	v1 := router.Group("/api/v1")
 	{
 		// Auth routes
 		authGroup := v1.Group("/auth")
 		{
-			authGroup.POST("/register", func(c *gin.Context) {
-				c.JSON(501, gin.H{"message": "Register endpoint not implemented yet"})
-			})
+			authGroup.POST("/register", registerHandler.GoogleOAuthRegister)
 			authGroup.POST("/login", func(c *gin.Context) {
 				c.JSON(501, gin.H{"message": "Login endpoint not implemented yet"})
 			})
 			authGroup.POST("/logout", func(c *gin.Context) {
 				c.JSON(501, gin.H{"message": "Logout endpoint not implemented yet"})
 			})
+			authGroup.GET("/health", registerHandler.HealthCheck)
 		}
 
 		// User routes
