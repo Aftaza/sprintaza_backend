@@ -7,6 +7,7 @@ import (
 	"time"
 
 	model "github.com/Aftaza/sprintaza_backend/models"
+	util "github.com/Aftaza/sprintaza_backend/utils"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
@@ -22,6 +23,114 @@ func NewService(repository *Repository, jwtSecret string) *Service {
 		repository: repository,
 		jwtSecret:  jwtSecret,
 	}
+}
+
+// RegisterUserInput defines the input for standard user registration
+type RegisterUserInput struct {
+	Name  string `json:"name" binding:"required"`
+	Email string `json:"email" binding:"required,email"`
+}
+
+// Validate checks if the input fields are valid
+func (i *RegisterUserInput) Validate() error {
+	if i.Name == "" {
+		return &ValidationError{Field: "name", Message: "Name is required"}
+	}
+	if i.Email == "" {
+		return &ValidationError{Field: "email", Message: "Email is required"}
+	}
+	return nil
+}
+
+// RegisterUser handles standard user registration
+func (s *Service) RegisterUser(input *RegisterUserInput) (*RegisterResponse, error) {
+	// Validate input
+	if err := input.Validate(); err != nil {
+		logrus.WithFields(logrus.Fields{
+			"email": input.Email,
+			"error": err.Error(),
+		}).Warn("Invalid registration input")
+		return nil, err
+	}
+
+	// Check if user already exists
+	existingUser, err := s.repository.CheckUserExists(input.Email)
+	if err != nil {
+		return nil, errors.New("failed to check user existence")
+	}
+
+	if existingUser != nil {
+		return nil, errors.New("user with this email already exists")
+	}
+
+	// Generate a random password
+	password, err := util.GenerateRandomPassword(12)
+	if err != nil {
+		return nil, errors.New("failed to generate secure password")
+	}
+
+	// Create new user entity
+	newUser := &model.EntityUsers{
+		Name:         input.Name,
+		Email:        input.Email,
+		PasswordHash: password, // This will be hashed by the BeforeCreate hook
+	}
+
+	// Create user in database
+	if err := s.repository.CreateUser(newUser); err != nil {
+		return nil, errors.New("failed to create user account")
+	}
+
+	// Send welcome email
+	emailData := map[string]string{
+		"Name":     newUser.Name,
+		"Email":    newUser.Email,
+		"Password": password,
+	}
+	go func() {
+		if err := util.SendEmail(newUser.Name, newUser.Email, "Welcome to Sprintaza!", "templates/email/registration_email.html", emailData); err != nil {
+			logrus.WithFields(logrus.Fields{
+				"user_id": newUser.ID,
+				"email":   newUser.Email,
+				"error":   err.Error(),
+			}).Error("Failed to send welcome email")
+		}
+	}()
+
+	// Award welcome achievement
+	var welcomeAchievement *AchievementResponse
+	if achievementData, err := s.awardWelcomeAchievement(newUser.ID); err != nil {
+		logrus.WithFields(logrus.Fields{
+			"user_id": newUser.ID,
+			"error":   err.Error(),
+		}).Warn("Failed to award welcome achievement, but user registration succeeded")
+	} else {
+		welcomeAchievement = achievementData
+	}
+
+	// Generate JWT token
+	token, err := s.generateJWTToken(newUser.ID, newUser.Email)
+	if err != nil {
+		return nil, errors.New("failed to generate authentication token")
+	}
+
+	logrus.WithFields(logrus.Fields{
+		"user_id": newUser.ID,
+		"email":   newUser.Email,
+		"name":    newUser.Name,
+	}).Info("New user registered successfully")
+
+	return &RegisterResponse{
+		Message: "User registered successfully",
+		User: UserResponse{
+			ID:    newUser.ID,
+			Name:  newUser.Name,
+			Email: newUser.Email,
+		},
+		Token:       token,
+		IsNewUser:   true,
+		Achievement: welcomeAchievement,
+	}, nil
 }
 
 // RegisterUserWithGoogleOAuth handles Google OAuth user registration
@@ -47,7 +156,7 @@ func (s *Service) RegisterUserWithGoogleOAuth(input *GoogleOAuthRegisterInput) (
 			"email":   input.Email,
 			"user_id": existingUser.ID,
 		}).Info("User already exists, returning login response")
-		
+
 		// Generate JWT token for existing user
 		token, err := s.generateJWTToken(existingUser.ID, existingUser.Email)
 		if err != nil {
@@ -78,7 +187,7 @@ func (s *Service) RegisterUserWithGoogleOAuth(input *GoogleOAuthRegisterInput) (
 		Name:         input.Name,
 		Email:        input.Email,
 		PasswordHash: randomPassword, // This will be hashed by the BeforeCreate hook
-		AvatarURL:    "", // Can be set later from Google profile
+		AvatarURL:    "",             // Can be set later from Google profile
 	}
 
 	// Create user in database
@@ -159,36 +268,37 @@ func (s *Service) generateRandomPassword() (string, error) {
 	}
 	return hex.EncodeToString(bytes), nil
 }
+
 // awardWelcomeAchievement awards the welcome achievement (ID: 1) to a new user and returns achievement details
 func (s *Service) awardWelcomeAchievement(userID uint) (*AchievementResponse, error) {
 	const welcomeAchievementID = 1
-	
+
 	// Award the achievement
 	if err := s.repository.AwardAchievement(userID, welcomeAchievementID); err != nil {
 		return nil, err
 	}
-	
+
 	// Get achievement details to award XP
 	achievement, err := s.repository.GetAchievementByID(welcomeAchievementID)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if achievement == nil {
 		return nil, errors.New("welcome achievement not found")
 	}
-	
+
 	// Update user's XP with achievement reward
 	if err := s.repository.UpdateUserXP(userID, achievement.XPReward); err != nil {
 		return nil, err
 	}
-	
+
 	logrus.WithFields(logrus.Fields{
 		"user_id":        userID,
 		"achievement_id": welcomeAchievementID,
 		"xp_reward":      achievement.XPReward,
 	}).Info("Welcome achievement awarded successfully")
-	
+
 	// Return achievement details for response
 	return &AchievementResponse{
 		ID:          achievement.ID,
@@ -202,10 +312,10 @@ func (s *Service) awardWelcomeAchievement(userID uint) (*AchievementResponse, er
 // RegisterResponse represents the response for user registration
 type RegisterResponse struct {
 	Message     string                  `json:"message"`
-	User        UserResponse           `json:"user"`
-	Token       string                 `json:"token"`
-	IsNewUser   bool                   `json:"is_new_user"`
-	Achievement *AchievementResponse   `json:"achievement,omitempty"` // Only for new users
+	User        UserResponse            `json:"user"`
+	Token       string                  `json:"token"`
+	IsNewUser   bool                    `json:"is_new_user"`
+	Achievement *AchievementResponse    `json:"achievement,omitempty"` // Only for new users
 }
 
 // UserResponse represents user data in API responses
